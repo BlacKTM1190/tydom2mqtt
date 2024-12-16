@@ -1,8 +1,8 @@
 # tydom2MQTT
 
-#![Docker pulls](https://img.shields.io/docker/pulls/tydom2mqtt/tydom2mqtt)
-#![License](https://img.shields.io/github/license/tydom2mqtt/tydom2mqtt)
-#![Travis](https://img.shields.io/travis/tydom2mqtt/tydom2mqtt/master)
+<!--![Docker pulls](https://img.shields.io/docker/pulls/tydom2mqtt/tydom2mqtt)
+![License](https://img.shields.io/github/license/tydom2mqtt/tydom2mqtt)
+![Travis](https://img.shields.io/travis/tydom2mqtt/tydom2mqtt/master)-->
 
 ![](docs/tydom2mqtt_logo_250.png)
 
