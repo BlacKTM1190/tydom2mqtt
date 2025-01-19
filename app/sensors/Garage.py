@@ -3,57 +3,63 @@ import logging
 from .Sensor import Sensor
 
 logger = logging.getLogger(__name__)
-light_command_topic = "light/tydom/{id}/set_levelCmd"
-light_config_topic = "homeassistant/light/tydom/{id}/config"
-light_level_topic = "light/tydom/{id}/current_level"
-light_set_level_topic = "light/tydom/{id}/set_level"
-light_attributes_topic = "light/tydom/{id}/attributes"
+cover_command_topic = "cover/tydom/{id}/set_garageLevelCmd"
+cover_config_topic = "homeassistant/cover/tydom/{id}/config"
+cover_position_topic = "cover/tydom/{id}/current_position"
+cover_state_topic = "cover/tydom/{id}/state"
+cover_level_topic = "cover/tydom/{id}/current_level"
+cover_set_level_topic = "cover/tydom/{id}/set_garageLevel"
+cover_attributes_topic = "cover/tydom/{id}/attributes"
 
 
-class Light:
+class Garage:
     def __init__(self, tydom_attributes, set_level=None, mqtt=None):
-        self.level_topic = None
-        self.config_topic = None
-        self.config = None
         self.device = None
+        self.config = None
+        self.config_topic = None
         self.attributes = tydom_attributes
         self.device_id = self.attributes["device_id"]
         self.endpoint_id = self.attributes["endpoint_id"]
         self.id = self.attributes["id"]
-        self.name = self.attributes["light_name"]
+        self.name = self.attributes["cover_name"]
         try:
             self.current_level = self.attributes["level"]
         except Exception as e:
             logger.error(e)
             self.current_level = None
+
         self.set_level = set_level
+        self.current_position = set_level
+
+        if "position" in tydom_attributes:
+            self.current_position = self.attributes["position"]
+
         self.mqtt = mqtt
 
     async def setup(self):
         self.device = {
             "manufacturer": "Delta Dore",
-            "model": "Lumiere",
+            "model": "Garage Door Horizontal",
             "name": self.name,
             "identifiers": self.id,
         }
-        self.config_topic = light_config_topic.format(id=self.id)
+        self.config_topic = cover_config_topic.format(id=self.id)
         self.config = {
             "name": None,  # set an MQTT entity's name to None to mark it as the main feature of a device
-            "brightness_scale": 100,
             "unique_id": self.id,
-            "optimistic": True,
-            "brightness_state_topic": light_level_topic.format(id=self.id),
-            "brightness_command_topic": light_set_level_topic.format(id=self.id),
-            "command_topic": light_command_topic.format(id=self.id),
-            "state_topic": light_level_topic.format(id=self.id),
-            "json_attributes_topic": light_attributes_topic.format(id=self.id),
-            "payload_off": "OFF",
-            "payload_on": "ON",
-            "on_command_type": "brightness",
+            "command_topic": cover_command_topic.format(id=self.id),
+            "position_topic": cover_position_topic.format(id=self.id),
+            "level_topic": cover_level_topic.format(id=self.id),
+            "set_position_topic": cover_set_level_topic.format(id=self.id),
+            "payload_open": "ON",
+            "payload_close": "OFF",
+            "payload_stop": "STOP",
             "retain": "false",
-            "state_value_template": "{{ 'ON' if value | int(0) > 0 else 'OFF' }}",
             "device": self.device,
+            "device_class": self.attributes["cover_class"],
         }
+
+        self.config["json_attributes_topic"] = cover_attributes_topic.format(id=self.id)
 
         if self.mqtt is not None:
             self.mqtt.mqtt_client.publish(
@@ -66,12 +72,18 @@ class Light:
         try:
             await self.update_sensors()
         except Exception as e:
-            logger.error("light sensors Error :")
+            logger.error("GarageDoor Horizontal sensors Error :")
             logger.error(e)
 
-        self.level_topic = light_level_topic.format(
+        self.level_topic = cover_state_topic.format(
             id=self.id, current_level=self.current_level
         )
+
+        if self.mqtt is not None:
+            # and 'position' in self.attributes:
+            self.mqtt.mqtt_client.publish(
+                self.config["position_topic"], self.current_level, qos=0, retain=True
+            )
 
         if self.mqtt is not None:
             self.mqtt.mqtt_client.publish(
@@ -83,8 +95,12 @@ class Light:
                 qos=0,
                 retain=True,
             )
+
         logger.info(
-            "light created / updated : %s %s %s", self.name, self.id, self.current_level
+            "GarageDoor Horizontal created / updated : %s %s %s",
+            self.name,
+            self.id,
+            self.current_level,
         )
 
     async def update_sensors(self):
@@ -102,16 +118,14 @@ class Light:
                 )
                 await new_sensor.update()
 
-    @staticmethod
-    async def put_level(tydom_client, device_id, light_id, level):
-        logger.info("%s %s %s", light_id, "level", level)
-        if not (level == ""):
-            await tydom_client.put_devices_data(device_id, light_id, "level", level)
+    async def put_garage_position(tydom_client, device_id, cover_id, position):
+        logger.info("%s %s %s", cover_id, "level", position)
+        if not (position == ""):
+            await tydom_client.put_devices_data(device_id, cover_id, "level", position)
 
-    @staticmethod
-    async def put_level_cmd(tydom_client, device_id, light_id, level_cmd):
-        logger.info("%s %s %s", light_id, "levelCmd", level_cmd)
-        if not (level_cmd == ""):
+    async def put_garage_positionCmd(tydom_client, device_id, cover_id, positionCmd):
+        logger.info("%s %s %s", cover_id, "levelCmd", positionCmd)
+        if not (positionCmd == ""):
             await tydom_client.put_devices_data(
-                device_id, light_id, "levelCmd", level_cmd
+                device_id, cover_id, "levelCmd", positionCmd
             )
